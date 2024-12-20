@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Video Interaction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            text-align: center;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        #video-feed {
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            max-width: 90%;
+            height: auto;
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin: 10px;
+            color: #2c3e50;
+        }
+
+        #gemini-response {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 1.4rem;
+            margin-top: 10px;
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #f39c12;
+            color: white;
+            border-radius: 5px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            p {
+                font-size: 1rem;
+            }
+
+            #gemini-response {
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Button styling for any future interactions */
+        .button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+
+<body onload="startVideo()">
+    <div class="container">
+        <h1>Gemini Video Interaction</h1>
+        <video id="video-feed" autoplay></video>
+        <p><strong>Gemini's Answer:</strong> <span id="gemini-response">Waiting...</span></p>
+        <!-- Optional button for starting/controlling video or interaction -->
+        <button class="button" onclick="startVideo()">Start Video</button>
+    </div>
+
+    <script>
+        const socket = new WebSocket("ws://localhost:8000/video-stream");
+
+        socket.onmessage = function (event) {
+            const geminiResponse = event.data;
+            const output = document.getElementById("gemini-response");
+            output.innerText = geminiResponse;
+        };
+
+        function sendVideoFrame() {
+            const video = document.getElementById("video-feed");
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const context = canvas.getContext("2d");
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(function (blob) {
+                if (blob) {
+                    const reader = new FileReader();
+                    reader.onload = function () {
+                        socket.send(reader.result);
+                    };
+                    reader.readAsArrayBuffer(blob);
+                }
+            }, "image/jpeg");
+        }
+
+        function startVideo() {
+            const video = document.getElementById("video-feed");
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.play();
+                    setInterval(sendVideoFrame, 1000); // Send a frame every second
+                })
+                .catch(err => console.error("Error accessing video stream:", err));
+        }
+    </script>
+</body>
+
+</html>
